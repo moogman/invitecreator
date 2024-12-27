@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Birthday Invite Generator</title>
+  <!-- jsPDF CDN (for PDF generation) -->
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+    integrity="sha512-..."
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
+  ></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 1rem;
+      max-width: 900px;
+      margin: auto;
+    }
+    h1 {
+      text-align: center;
+    }
+
+    /* Container for form and preview side-by-side (responsive) */
+    .container {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+    @media (min-width: 768px) {
+      .container {
+        flex-direction: row;
+      }
+    }
+
+    .form-section, .preview-section {
+      flex: 1;
+      min-width: 300px;
+    }
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: bold;
+    }
+    input[type="text"],
+    textarea {
+      width: 100%;
+      padding: 0.5rem;
+      font-size: 1rem;
+    }
+    input[type="file"] {
+      margin-top: 0.5rem;
+    }
+    button {
+      padding: 0.7rem 1.2rem;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
+    /* Preview styling */
+    .preview-section {
+      border: 1px solid #ccc;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .invite-preview {
+      text-align: center;
+      border: 1px solid #eee;
+      padding: 1rem;
+      margin-top: 1rem;
+    }
+    .invite-preview img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 1rem auto;
+    }
+    .invite-title {
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+    }
+    .invite-details {
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Birthday Invite Generator</h1>
+
+  <div class="container">
+    <!-- FORM SECTION -->
+    <div class="form-section">
+      <div class="form-group">
+        <label for="eventName">Event Name</label>
+        <input id="eventName" type="text" placeholder="e.g. Jane's Birthday Bash" />
+      </div>
+
+      <div class="form-group">
+        <label for="eventDetails">Event Details (Where & When)</label>
+        <textarea
+          id="eventDetails"
+          rows="3"
+          placeholder="123 Party St. - Dec 31, 8 PM"
+        ></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="invitees">Invitees (one per line)</label>
+        <textarea
+          id="invitees"
+          rows="5"
+          placeholder="John Doe\nJane Smith\n..."
+        ></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="inviteImage">Upload an Image</label>
+        <input id="inviteImage" type="file" accept="image/*" />
+      </div>
+
+      <button id="saveDataBtn">Save Data</button>
+      <button id="generatePdfBtn">Generate PDF</button>
+    </div>
+
+    <!-- PREVIEW SECTION -->
+    <div class="preview-section">
+      <p><strong>Live Preview</strong></p>
+      <div class="invite-preview" id="invitePreview">
+        <div class="invite-title" id="previewEventName"></div>
+        <div class="invite-details" id="previewEventDetails"></div>
+        <img id="previewImage" alt="Invite Image" style="display: none;"/>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // We'll use the global jspdf from the CDN
+    const { jsPDF } = window.jspdf;
+
+    // Elements
+    const eventNameInput    = document.getElementById('eventName');
+    const eventDetailsInput = document.getElementById('eventDetails');
+    const inviteesInput     = document.getElementById('invitees');
+    const inviteImageInput  = document.getElementById('inviteImage');
+
+    const previewEventName    = document.getElementById('previewEventName');
+    const previewEventDetails = document.getElementById('previewEventDetails');
+    const previewImage        = document.getElementById('previewImage');
+
+    const saveDataBtn     = document.getElementById('saveDataBtn');
+    const generatePdfBtn  = document.getElementById('generatePdfBtn');
+
+    // Global variable to hold the base64 image data
+    let inviteImageData = null;
+
+    // ------------------------
+    // LOAD FROM LOCALSTORAGE
+    // ------------------------
+    window.addEventListener('load', () => {
+      const storedEventName    = localStorage.getItem('eventName') || '';
+      const storedEventDetails = localStorage.getItem('eventDetails') || '';
+      const storedInvitees     = localStorage.getItem('invitees') || '';
+      const storedImage        = localStorage.getItem('inviteImageData') || null;
+
+      eventNameInput.value    = storedEventName;
+      eventDetailsInput.value = storedEventDetails;
+      inviteesInput.value     = storedInvitees;
+
+      if (storedImage) {
+        inviteImageData = storedImage;
+        previewImage.src = inviteImageData;
+        previewImage.style.display = 'block';
+      }
+
+      updatePreview();
+    });
+
+    // ------------------------
+    // SAVE TO LOCALSTORAGE
+    // ------------------------
+    function saveToLocalStorage() {
+      localStorage.setItem('eventName', eventNameInput.value);
+      localStorage.setItem('eventDetails', eventDetailsInput.value);
+      localStorage.setItem('invitees', inviteesInput.value);
+      if (inviteImageData) {
+        localStorage.setItem('inviteImageData', inviteImageData);
+      }
+      alert('Data saved to localStorage!');
+    }
+
+    // ------------------------
+    // PREVIEW UPDATES
+    // ------------------------
+    function updatePreview() {
+      previewEventName.textContent    = eventNameInput.value;
+      previewEventDetails.textContent = eventDetailsInput.value;
+    }
+
+    eventNameInput.addEventListener('input', updatePreview);
+    eventDetailsInput.addEventListener('input', updatePreview);
+
+    // ------------------------
+    // IMAGE UPLOAD HANDLER
+    // ------------------------
+    inviteImageInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        inviteImageData = evt.target.result; // Base64 string
+        previewImage.src = inviteImageData;
+        previewImage.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // ------------------------
+    // GENERATE PDF
+    // ------------------------
+    function generatePDF() {
+      const doc = new jsPDF('p', 'pt', 'letter'); // 612x792 px
+      const allInvitees = inviteesInput.value.split('\n').filter(name => name.trim().length > 0);
+
+      // For each invitee, add a page (first one is automatically added)
+      allInvitees.forEach((invitee, index) => {
+        if (index > 0) {
+          doc.addPage();
+        }
+
+        // Title
+        doc.setFontSize(18);
+        doc.text(`You're invited to: ${eventNameInput.value}`, 40, 60);
+
+        // Invitee
+        doc.setFontSize(14);
+        doc.text(`Dear ${invitee},`, 40, 100);
+
+        // Details
+        doc.setFontSize(12);
+        doc.text(`Event Details: ${eventDetailsInput.value}`, 40, 130);
+
+        // Insert the image if available
+        if (inviteImageData) {
+          // For best results, consider resizing for PDF (e.g., to 200x100 px)
+          // We'll just place it to the right of text for demonstration
+          const imgWidth = 150;
+          const imgHeight = 150;
+          doc.addImage(inviteImageData, 'PNG', 350, 60, imgWidth, imgHeight);
+        }
+      });
+
+      doc.save('Invites.pdf');
+    }
+
+    // ------------------------
+    // BUTTON HANDLERS
+    // ------------------------
+    saveDataBtn.addEventListener('click', saveToLocalStorage);
+    generatePdfBtn.addEventListener('click', generatePDF);
+  </script>
+</body>
+</html>
