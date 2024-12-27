@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Birthday Invite Generator (Advanced)</title>
+  <title>Advanced Birthday Invite Generator</title>
 
-  <!-- jsPDF CDN (for PDF generation) -->
+  <!-- jsPDF for PDF generation -->
   <script
     src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
     integrity="sha512-..."
@@ -13,19 +13,23 @@
     referrerpolicy="no-referrer"
   ></script>
 
+  <!-- Minecraft font (CDN) -->
+  <link
+    rel="stylesheet"
+    href="https://fonts.cdnfonts.com/css/minecraft-4"
+  />
+  
   <style>
     body {
       font-family: Arial, sans-serif;
-      padding: 1rem;
       max-width: 900px;
-      margin: auto;
+      margin: 1rem auto;
+      padding: 1rem;
     }
     h1 {
       text-align: center;
-      margin-bottom: 1rem;
     }
 
-    /* Container for form and preview side-by-side (responsive) */
     .container {
       display: flex;
       flex-direction: column;
@@ -37,7 +41,8 @@
       }
     }
 
-    .form-section, .preview-section {
+    /* --- Form Section --- */
+    .form-section {
       flex: 1;
       min-width: 300px;
     }
@@ -45,76 +50,71 @@
       margin-bottom: 1rem;
     }
     label {
-      display: block;
-      margin-bottom: 0.5rem;
       font-weight: bold;
+      margin-bottom: 0.4rem;
+      display: block;
     }
     input[type="text"],
     textarea,
     select {
       width: 100%;
-      padding: 0.5rem;
+      padding: 0.4rem;
       font-size: 1rem;
     }
     textarea {
       resize: vertical;
     }
-    input[type="file"] {
-      margin-top: 0.5rem;
-    }
-    input[type="color"] {
-      width: 40px;
-      height: 40px;
-      padding: 0;
-      border: none;
-      cursor: pointer;
-      background: none;
-    }
     .button-row {
       display: flex;
+      flex-wrap: wrap;
       gap: 1rem;
       margin-top: 1rem;
       align-items: center;
     }
     button {
-      padding: 0.7rem 1.2rem;
-      font-size: 1rem;
       cursor: pointer;
+      padding: 0.6rem 1rem;
+      font-size: 1rem;
     }
-    .button-row label {
-      margin: 0;
+    input[type="file"] {
+      margin-top: 0.2rem;
     }
 
-    /* Preview styling */
+    /* --- Preview Section --- */
     .preview-section {
+      flex: 1;
+      min-width: 300px;
       border: 1px solid #ccc;
       padding: 1rem;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
     }
     .invite-preview {
-      text-align: center;
-      border: 1px solid #eee;
-      padding: 1rem;
-      margin-top: 1rem;
-      min-height: 200px; /* just to give some space */
+      /* This width/height is in points (the same unit jsPDF uses).
+         612 pts x 792 pts = 8.5" x 11" (US Letter). */
+      width: 612px;
+      height: 792px;
+      border: 1px dashed #aaa;
       position: relative;
+      margin: 0 auto;
+      overflow: hidden;
+      background: #fafafa;
     }
-    .invite-preview img {
-      max-width: 100%;
-      height: auto;
-      display: block;
-      margin: 1rem auto;
+    /* Draggable text elements */
+    .draggable {
+      position: absolute;
+      cursor: move;
+      user-select: none; /* prevent text selection while dragging */
+      white-space: pre;  /* keep newlines if any */
     }
-    .preview-navigation {
-      display: flex;
-      gap: 0.5rem;
-      justify-content: center;
-      margin-top: 1rem;
+    /* A simple handle style to show it's draggable (optional) */
+    .draggable:hover {
+      outline: 1px dashed #000;
     }
-    .hidden {
-      display: none !important;
+
+    /* For the "Minecraft" font */
+    .font-minecraft {
+      font-family: "Minecraft", sans-serif !important;
     }
   </style>
 </head>
@@ -131,7 +131,7 @@
       <input 
         id="eventName" 
         type="text" 
-        placeholder="e.g. Jane's Birthday Bash" 
+        placeholder="e.g. Jane's Birthday Bash"
       />
     </div>
 
@@ -141,65 +141,51 @@
       <textarea
         id="eventDetails"
         rows="3"
-        placeholder="123 Party St.\nDec 31, 8 PM"
+        placeholder="123 Party St.
+Dec 31, 8 PM"
       ></textarea>
     </div>
 
-    <!-- Invitees (multi-line placeholder) -->
+    <!-- Invitees -->
     <div class="form-group">
       <label for="invitees">Invitees (one per line)</label>
       <textarea
         id="invitees"
-        rows="5"
+        rows="4"
         placeholder="John Doe
 Jane Smith
 Bob Johnson"
       ></textarea>
     </div>
 
-    <!-- Layout Reordering -->
+    <!-- Text Color / Font / Font Size -->
     <div class="form-group">
-      <label>Section Ordering</label>
-      <!-- We have three positions; user can choose which section goes where -->
-      <!-- Options: title, name, details -->
-      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-        <div>
-          <label for="pos1">Position #1</label>
-          <select id="pos1">
-            <option value="title">Event Title</option>
-            <option value="name">Invitee Name</option>
-            <option value="details">Event Details</option>
-          </select>
-        </div>
-        <div>
-          <label for="pos2">Position #2</label>
-          <select id="pos2">
-            <option value="title">Event Title</option>
-            <option value="name">Invitee Name</option>
-            <option value="details">Event Details</option>
-          </select>
-        </div>
-        <div>
-          <label for="pos3">Position #3</label>
-          <select id="pos3">
-            <option value="title">Event Title</option>
-            <option value="name">Invitee Name</option>
-            <option value="details">Event Details</option>
-          </select>
-        </div>
-      </div>
+      <label>Text Color</label>
+      <input id="textColor" type="color" value="#000000"/>
+    </div>
+    <div class="form-group">
+      <label for="fontSelect">Font</label>
+      <select id="fontSelect">
+        <option value="Arial">Arial</option>
+        <option value="Times New Roman">Times New Roman</option>
+        <option value="Minecraft">Minecraft</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="fontSize">Font Size (px)</label>
+      <input
+        id="fontSize"
+        type="number"
+        value="14"
+        min="8"
+        max="72"
+      />
     </div>
 
-    <!-- Text Color -->
-    <div class="form-group">
-      <label for="textColor">Text Color</label>
-      <input id="textColor" type="color" value="#000000" />
-    </div>
-
-    <!-- File & Generate Buttons in one row -->
+    <!-- File & Generate Buttons -->
     <div class="button-row">
       <div>
-        <label for="inviteImage" style="font-weight: normal;">Upload an Image</label>
+        <label for="inviteImage" style="font-weight: normal;">Upload Image</label>
         <input 
           id="inviteImage" 
           type="file" 
@@ -208,98 +194,109 @@ Bob Johnson"
       </div>
       <button id="generatePdfBtn">Generate PDF</button>
     </div>
-
   </div>
   <!-- END FORM SECTION -->
 
   <!-- PREVIEW SECTION -->
   <div class="preview-section">
-    <p><strong>Live Preview</strong></p>
-    <div class="invite-preview" id="invitePreview"></div>
-    <!-- Invitee navigation buttons -->
-    <div class="preview-navigation">
-      <button id="firstBtn">&laquo;</button>
-      <button id="prevBtn">&lt;</button>
-      <button id="nextBtn">&gt;</button>
-      <button id="lastBtn">&raquo;</button>
+    <p><strong>Live Preview (Drag Text Around)</strong></p>
+    <div class="invite-preview" id="invitePreview">
+      <!-- Draggable text for the event name -->
+      <div
+        class="draggable"
+        id="eventNameDiv"
+      ></div>
+
+      <!-- Draggable text for the invitee name -->
+      <div
+        class="draggable"
+        id="inviteeNameDiv"
+      ></div>
+
+      <!-- Draggable text for the event details -->
+      <div
+        class="draggable"
+        id="eventDetailsDiv"
+      ></div>
+
+      <!-- The image (placed behind text) -->
+      <img
+        id="inviteImagePreview"
+        alt="Preview Image"
+        style="position: absolute; top: 100px; left: 100px; max-width: 300px;"
+      />
     </div>
   </div>
 </div>
 
-
 <script>
-  // We'll use the global jspdf from the CDN
   const { jsPDF } = window.jspdf;
 
-  // ------------ ELEMENTS ------------
-  const eventNameInput    = document.getElementById('eventName');
-  const eventDetailsInput = document.getElementById('eventDetails');
-  const inviteesInput     = document.getElementById('invitees');
-  const inviteImageInput  = document.getElementById('inviteImage');
+  // --- DOM Elements ---
+  const eventNameInput     = document.getElementById('eventName');
+  const eventDetailsInput  = document.getElementById('eventDetails');
+  const inviteesInput      = document.getElementById('invitees');
+  const inviteImageInput   = document.getElementById('inviteImage');
+  const textColorInput     = document.getElementById('textColor');
+  const fontSelect         = document.getElementById('fontSelect');
+  const fontSizeInput      = document.getElementById('fontSize');
+  const generatePdfBtn     = document.getElementById('generatePdfBtn');
 
-  const pos1Select = document.getElementById('pos1');
-  const pos2Select = document.getElementById('pos2');
-  const pos3Select = document.getElementById('pos3');
+  const invitePreview      = document.getElementById('invitePreview');
+  const eventNameDiv       = document.getElementById('eventNameDiv');
+  const inviteeNameDiv     = document.getElementById('inviteeNameDiv');
+  const eventDetailsDiv    = document.getElementById('eventDetailsDiv');
+  const inviteImagePreview = document.getElementById('inviteImagePreview');
 
-  const textColorInput = document.getElementById('textColor');
-
-  const invitePreview   = document.getElementById('invitePreview');
-
-  const firstBtn  = document.getElementById('firstBtn');
-  const prevBtn   = document.getElementById('prevBtn');
-  const nextBtn   = document.getElementById('nextBtn');
-  const lastBtn   = document.getElementById('lastBtn');
-
-  const generatePdfBtn  = document.getElementById('generatePdfBtn');
-
-  // Global variables
+  // For dragging elements
+  let currentDrag = null;     // Which element is being dragged?
+  let offsetX = 0, offsetY = 0;  // Cursor offset within the element
+  // We'll store the base64 image data here
   let inviteImageData = null;
-  let currentInviteeIndex = 0; // used for preview navigation
 
-  // ------------ LOAD FROM LOCALSTORAGE ON START ------------
+  // -------------- INIT --------------
+  // On load, load from localStorage if you want persistent data:
   window.addEventListener('load', () => {
-    const storedEventName    = localStorage.getItem('eventName')    || '';
-    const storedEventDetails = localStorage.getItem('eventDetails') || '';
-    const storedInvitees     = localStorage.getItem('invitees')     || '';
-    const storedImage        = localStorage.getItem('inviteImageData');
-    const storedPos1         = localStorage.getItem('pos1') || 'title';
-    const storedPos2         = localStorage.getItem('pos2') || 'name';
-    const storedPos3         = localStorage.getItem('pos3') || 'details';
-    const storedTextColor    = localStorage.getItem('textColor') || '#000000';
+    eventNameInput.value    = localStorage.getItem('eventName')     || '';
+    eventDetailsInput.value = localStorage.getItem('eventDetails')  || '';
+    inviteesInput.value     = localStorage.getItem('invitees')      || '';
+    textColorInput.value    = localStorage.getItem('textColor')     || '#000000';
+    fontSelect.value        = localStorage.getItem('fontSelect')    || 'Arial';
+    fontSizeInput.value     = localStorage.getItem('fontSize')      || '14';
 
-    eventNameInput.value    = storedEventName;
-    eventDetailsInput.value = storedEventDetails;
-    inviteesInput.value     = storedInvitees;
-    pos1Select.value        = storedPos1;
-    pos2Select.value        = storedPos2;
-    pos3Select.value        = storedPos3;
-    textColorInput.value    = storedTextColor;
-
+    const storedImage = localStorage.getItem('inviteImageData');
     if (storedImage) {
       inviteImageData = storedImage;
+      inviteImagePreview.src = inviteImageData;
+      inviteImagePreview.style.display = 'block';
     }
 
-    // Populate preview
+    // Position data from localStorage (example: JSON)
+    const positions = JSON.parse(localStorage.getItem('positions') || '{}');
+    if (positions.eventNameDiv) {
+      eventNameDiv.style.left = positions.eventNameDiv.left;
+      eventNameDiv.style.top  = positions.eventNameDiv.top;
+    }
+    if (positions.inviteeNameDiv) {
+      inviteeNameDiv.style.left = positions.inviteeNameDiv.left;
+      inviteeNameDiv.style.top  = positions.inviteeNameDiv.top;
+    }
+    if (positions.eventDetailsDiv) {
+      eventDetailsDiv.style.left = positions.eventDetailsDiv.left;
+      eventDetailsDiv.style.top  = positions.eventDetailsDiv.top;
+    }
+    
     updatePreview();
   });
 
-  // ------------ AUTO-SAVE ON INPUT ------------
-  function autoSave() {
-    localStorage.setItem('eventName', eventNameInput.value);
-    localStorage.setItem('eventDetails', eventDetailsInput.value);
-    localStorage.setItem('invitees', inviteesInput.value);
-    localStorage.setItem('pos1', pos1Select.value);
-    localStorage.setItem('pos2', pos2Select.value);
-    localStorage.setItem('pos3', pos3Select.value);
-    localStorage.setItem('textColor', textColorInput.value);
-    if (inviteImageData) {
-      localStorage.setItem('inviteImageData', inviteImageData);
-    }
-  }
-
-  // Attach autoSave + preview update to relevant inputs
-  [eventNameInput, eventDetailsInput, inviteesInput,
-   pos1Select, pos2Select, pos3Select, textColorInput
+  // Auto-save on changes
+  [
+    eventNameInput,
+    eventDetailsInput,
+    inviteesInput,
+    textColorInput,
+    fontSelect,
+    fontSizeInput
   ].forEach(el => {
     el.addEventListener('input', () => {
       autoSave();
@@ -307,164 +304,225 @@ Bob Johnson"
     });
   });
 
-  // ------------ IMAGE UPLOAD HANDLER ------------
+  // -------------- AUTO-SAVE --------------
+  function autoSave() {
+    localStorage.setItem('eventName', eventNameInput.value);
+    localStorage.setItem('eventDetails', eventDetailsInput.value);
+    localStorage.setItem('invitees', inviteesInput.value);
+    localStorage.setItem('textColor', textColorInput.value);
+    localStorage.setItem('fontSelect', fontSelect.value);
+    localStorage.setItem('fontSize', fontSizeInput.value);
+
+    // Save positions in localStorage as well
+    const positions = {
+      eventNameDiv: {
+        left: eventNameDiv.style.left || '100px',
+        top:  eventNameDiv.style.top  || '50px'
+      },
+      inviteeNameDiv: {
+        left: inviteeNameDiv.style.left || '100px',
+        top:  inviteeNameDiv.style.top  || '100px'
+      },
+      eventDetailsDiv: {
+        left: eventDetailsDiv.style.left || '100px',
+        top:  eventDetailsDiv.style.top  || '150px'
+      }
+    };
+    localStorage.setItem('positions', JSON.stringify(positions));
+
+    // Also save the image
+    if (inviteImageData) {
+      localStorage.setItem('inviteImageData', inviteImageData);
+    }
+  }
+
+  // -------------- UPDATE PREVIEW --------------
+  function updatePreview() {
+    // Grab data
+    const eventName    = eventNameInput.value;
+    const eventDetails = eventDetailsInput.value;
+    const inviteesList = inviteesInput.value.split('\n').filter(x => x.trim() !== '');
+
+    // We'll just show the first invitee in the preview
+    // (You can add a nav system if you want multiple in the preview.)
+    const firstInvitee = inviteesList.length > 0 ? inviteesList[0] : '';
+
+    // Update draggable text contents
+    eventNameDiv.textContent    = eventName;
+    inviteeNameDiv.textContent  = firstInvitee;
+    eventDetailsDiv.textContent = eventDetails;
+
+    // Apply color / font / size
+    const color = textColorInput.value;
+    const font  = fontSelect.value;
+    const size  = fontSizeInput.value + 'px';
+
+    [eventNameDiv, inviteeNameDiv, eventDetailsDiv].forEach(el => {
+      el.style.color = color;
+      el.style.fontSize = size;
+      
+      // If user selected “Minecraft,” add the .font-minecraft class
+      if (font === 'Minecraft') {
+        el.classList.add('font-minecraft');
+        el.style.fontFamily = '"Minecraft", sans-serif';
+      } else {
+        el.classList.remove('font-minecraft');
+        el.style.fontFamily = font;
+      }
+    });
+  }
+
+  // -------------- IMAGE UPLOAD --------------
   inviteImageInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = function(evt) {
-      inviteImageData = evt.target.result; // Base64 string
+      inviteImageData = evt.target.result; // Base64
+      inviteImagePreview.src = inviteImageData;
+      inviteImagePreview.style.display = 'block';
       autoSave();
-      updatePreview();
     };
     reader.readAsDataURL(file);
   });
 
-  // ------------ PREVIEW UPDATE ------------
-  function updatePreview() {
-    // Clear preview first
-    invitePreview.innerHTML = '';
+  // -------------- DRAG & DROP HANDLERS --------------
+  // We can handle mousedown on each "draggable" text div
+  [eventNameDiv, inviteeNameDiv, eventDetailsDiv].forEach(el => {
+    el.addEventListener('mousedown', startDrag);
+  });
+  document.addEventListener('mousemove', onDrag);
+  document.addEventListener('mouseup', endDrag);
 
-    // Collect data
-    const eventName    = eventNameInput.value || '';
-    const eventDetails = eventDetailsInput.value || '';
-    const invitees     = inviteesInput.value
-      .split('\n')
-      .filter(name => name.trim().length > 0);
-
-    // Ensure currentInviteeIndex is in range
-    if (invitees.length === 0) {
-      currentInviteeIndex = 0;
-    } else if (currentInviteeIndex >= invitees.length) {
-      currentInviteeIndex = invitees.length - 1;
-    }
-
-    // Create a small function that returns a div (or text) for each "section"
-    // in the chosen order: pos1, pos2, pos3. Each can be "title", "name", or "details".
-    const sectionsOrder = [pos1Select.value, pos2Select.value, pos3Select.value];
-    const inviteeName = invitees[currentInviteeIndex] || '';
-
-    sectionsOrder.forEach((section) => {
-      let content = '';
-      switch (section) {
-        case 'title':
-          content = eventName;
-          break;
-        case 'name':
-          content = inviteeName ? `Dear ${inviteeName},` : '';
-          break;
-        case 'details':
-          content = eventDetails;
-          break;
-      }
-      if (content) {
-        const el = document.createElement('div');
-        el.textContent = content;
-        el.style.margin = '0.5rem 0';
-        el.style.color = textColorInput.value;
-        invitePreview.appendChild(el);
-      }
-    });
-
-    // Add image if present
-    if (inviteImageData) {
-      const img = document.createElement('img');
-      img.src = inviteImageData;
-      invitePreview.appendChild(img);
-    }
+  function startDrag(e) {
+    // Identify the element being dragged
+    currentDrag = e.target;
+    // Compute offsets
+    const rect = currentDrag.getBoundingClientRect();
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
   }
 
-  // ------------ PREVIEW NAVIGATION ------------
-  function goToFirst() {
-    currentInviteeIndex = 0;
-    updatePreview();
-  }
-  function goToPrev() {
-    if (currentInviteeIndex > 0) {
-      currentInviteeIndex--;
-      updatePreview();
-    }
-  }
-  function goToNext() {
-    const total = inviteesInput.value
-      .split('\n')
-      .filter(name => name.trim().length > 0).length;
-    if (currentInviteeIndex < total - 1) {
-      currentInviteeIndex++;
-      updatePreview();
-    }
-  }
-  function goToLast() {
-    const total = inviteesInput.value
-      .split('\n')
-      .filter(name => name.trim().length > 0).length;
-    if (total > 0) {
-      currentInviteeIndex = total - 1;
-      updatePreview();
-    }
+  function onDrag(e) {
+    if (!currentDrag) return;
+    // Constrain movement within the invitePreview
+    const parentRect = invitePreview.getBoundingClientRect();
+
+    let newLeft = e.clientX - parentRect.left - offsetX;
+    let newTop  = e.clientY - parentRect.top - offsetY;
+
+    // Keep text within bounds
+    const elemRect = currentDrag.getBoundingClientRect();
+    // Right/bottom boundaries
+    const maxLeft = parentRect.width - elemRect.width;
+    const maxTop  = parentRect.height - elemRect.height;
+
+    if (newLeft < 0) newLeft = 0;
+    if (newTop  < 0) newTop  = 0;
+    if (newLeft > maxLeft) newLeft = maxLeft;
+    if (newTop  > maxTop ) newTop  = maxTop;
+
+    // Apply
+    currentDrag.style.left = newLeft + 'px';
+    currentDrag.style.top  = newTop + 'px';
   }
 
-  firstBtn.addEventListener('click', goToFirst);
-  prevBtn.addEventListener('click', goToPrev);
-  nextBtn.addEventListener('click', goToNext);
-  lastBtn.addEventListener('click', goToLast);
+  function endDrag() {
+    if (currentDrag) {
+      // Save positions when drag ends
+      autoSave();
+    }
+    currentDrag = null;
+  }
 
-  // ------------ GENERATE PDF ------------
+  // -------------- GENERATE PDF --------------
   function generatePDF() {
-    const doc = new jsPDF('p', 'pt', 'letter'); // 612x792 px
-    const eventName    = eventNameInput.value || '';
-    const eventDetails = eventDetailsInput.value || '';
-    const invitees     = inviteesInput.value
-      .split('\n')
-      .filter(name => name.trim().length > 0);
-    
-    // Convert "#RRGGBB" to (R, G, B)
-    const hexColor = textColorInput.value.replace('#','');
+    const doc = new jsPDF('p', 'pt', 'letter'); // 612 x 792
+    const eventName    = eventNameInput.value;
+    const eventDetails = eventDetailsInput.value;
+    const invitees     = inviteesInput.value.split('\n').filter(x => x.trim() !== '');
+
+    // Collect styling
+    const color = textColorInput.value;
+    const hexColor = color.replace('#','');
     const r = parseInt(hexColor.substring(0,2), 16);
     const g = parseInt(hexColor.substring(2,4), 16);
     const b = parseInt(hexColor.substring(4,6), 16);
 
-    // Chosen order for the text sections
-    const sectionsOrder = [pos1Select.value, pos2Select.value, pos3Select.value];
+    const chosenFont = fontSelect.value;
+    // We'll map the user selection to a built-in jsPDF font or fallback
+    // jsPDF does not have "Minecraft" built-in, so we can’t embed it easily 
+    // without a custom TTF. We'll approximate it with 'courier' or just 'helvetica'.
+    let jsPdfFont = 'helvetica';
+    if (chosenFont.toLowerCase().includes('times')) jsPdfFont = 'times';
+    else if (chosenFont.toLowerCase().includes('courier')) jsPdfFont = 'courier';
 
-    invitees.forEach((invitee, index) => {
-      // Add a new page if not the first
-      if (index > 0) doc.addPage();
+    const fontSize = parseInt(fontSizeInput.value, 10);
 
-      // We'll track y position as we print lines
-      let yPos = 60;
+    // Positions from the preview
+    // We'll read the bounding boxes (x,y in the .invite-preview).
+    // Because preview is sized 612x792, we can use the positions 1:1 in jsPDF.
+    // If you scale your preview differently, you must adjust (ratio).
+    function getElementPosition(el) {
+      const rect = el.getBoundingClientRect();
+      const parentRect = invitePreview.getBoundingClientRect();
+      return {
+        x: rect.left - parentRect.left,
+        y: rect.top  - parentRect.top,
+      };
+    }
+    const posName   = getElementPosition(eventNameDiv);
+    const posInvite = getElementPosition(inviteeNameDiv);
+    const posDetail = getElementPosition(eventDetailsDiv);
+    // If the image is placed at top=100, left=100 in the preview, let's do the same in PDF
+    // or we can read its bounding box as well:
+    const imgRect = inviteImagePreview.getBoundingClientRect();
+    const parentRect = invitePreview.getBoundingClientRect();
+    const imgX = imgRect.left - parentRect.left;
+    const imgY = imgRect.top  - parentRect.top;
+    // We'll pick the displayed size in the preview
+    const imgWidth  = imgRect.width;
+    const imgHeight = imgRect.height;
 
-      sectionsOrder.forEach(section => {
-        let textContent = '';
-        switch (section) {
-          case 'title':
-            textContent = eventName;
-            break;
-          case 'name':
-            textContent = invitee ? `Dear ${invitee},` : '';
-            break;
-          case 'details':
-            textContent = eventDetails;
-            break;
-        }
-        if (textContent) {
-          doc.setFontSize(14);
-          doc.setTextColor(r, g, b);
-          doc.text(textContent, 40, yPos);
-          yPos += 30; // move down for next line
-        }
-      });
+    invitees.forEach((invitee, i) => {
+      if (i > 0) doc.addPage(); // new page per invitee
 
-      // Insert the image if available
+      // We'll set the color & font for each text piece
+      doc.setTextColor(r, g, b);
+      doc.setFont(jsPdfFont, 'normal');
+      doc.setFontSize(fontSize);
+
+      // event name
+      if (eventName) {
+        doc.text(eventName, posName.x, posName.y + fontSize); 
+        // + fontSize to place the baseline roughly where it appears in preview
+      }
+
+      // invitee name (no "Dear")
+      if (invitee) {
+        doc.text(invitee, posInvite.x, posInvite.y + fontSize);
+      }
+
+      // event details
+      if (eventDetails) {
+        // For multi-line text, we can split by newlines & print line by line
+        const lines = eventDetails.split('\n');
+        let lineY = posDetail.y + fontSize;
+        lines.forEach(line => {
+          doc.text(line, posDetail.x, lineY);
+          lineY += (fontSize + 4); // small line spacing
+        });
+      }
+
+      // Insert image if available
       if (inviteImageData) {
-        // For best results, consider resizing for PDF
-        // We'll do 150x150 as an example
-        doc.addImage(inviteImageData, 'PNG', 40, yPos, 150, 150);
+        doc.addImage(inviteImageData, 'PNG', imgX, imgY, imgWidth, imgHeight);
       }
     });
 
     doc.save('Invites.pdf');
   }
+
   generatePdfBtn.addEventListener('click', generatePDF);
 </script>
 </body>
