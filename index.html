@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Birthday Invite Generator</title>
+  <title>Birthday Invite Generator (Advanced)</title>
+
   <!-- jsPDF CDN (for PDF generation) -->
   <script
     src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
@@ -11,6 +12,7 @@
     crossorigin="anonymous"
     referrerpolicy="no-referrer"
   ></script>
+
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -20,6 +22,7 @@
     }
     h1 {
       text-align: center;
+      margin-bottom: 1rem;
     }
 
     /* Container for form and preview side-by-side (responsive) */
@@ -47,18 +50,39 @@
       font-weight: bold;
     }
     input[type="text"],
-    textarea {
+    textarea,
+    select {
       width: 100%;
       padding: 0.5rem;
       font-size: 1rem;
     }
+    textarea {
+      resize: vertical;
+    }
     input[type="file"] {
       margin-top: 0.5rem;
+    }
+    input[type="color"] {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      border: none;
+      cursor: pointer;
+      background: none;
+    }
+    .button-row {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1rem;
+      align-items: center;
     }
     button {
       padding: 0.7rem 1.2rem;
       font-size: 1rem;
       cursor: pointer;
+    }
+    .button-row label {
+      margin: 0;
     }
 
     /* Preview styling */
@@ -74,6 +98,8 @@
       border: 1px solid #eee;
       padding: 1rem;
       margin-top: 1rem;
+      min-height: 200px; /* just to give some space */
+      position: relative;
     }
     .invite-preview img {
       max-width: 100%;
@@ -81,190 +107,365 @@
       display: block;
       margin: 1rem auto;
     }
-    .invite-title {
-      font-size: 1.2rem;
-      margin-bottom: 1rem;
+    .preview-navigation {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      margin-top: 1rem;
     }
-    .invite-details {
-      margin-bottom: 1rem;
+    .hidden {
+      display: none !important;
     }
   </style>
 </head>
 <body>
 
-  <h1>Birthday Invite Generator</h1>
+<h1>Birthday Invite Generator</h1>
 
-  <div class="container">
-    <!-- FORM SECTION -->
-    <div class="form-section">
-      <div class="form-group">
-        <label for="eventName">Event Name</label>
-        <input id="eventName" type="text" placeholder="e.g. Jane's Birthday Bash" />
+<div class="container">
+  <!-- FORM SECTION -->
+  <div class="form-section">
+    <!-- Event Name -->
+    <div class="form-group">
+      <label for="eventName">Event Name</label>
+      <input 
+        id="eventName" 
+        type="text" 
+        placeholder="e.g. Jane's Birthday Bash" 
+      />
+    </div>
+
+    <!-- Event Details -->
+    <div class="form-group">
+      <label for="eventDetails">Event Details (Where & When)</label>
+      <textarea
+        id="eventDetails"
+        rows="3"
+        placeholder="123 Party St.\nDec 31, 8 PM"
+      ></textarea>
+    </div>
+
+    <!-- Invitees (multi-line placeholder) -->
+    <div class="form-group">
+      <label for="invitees">Invitees (one per line)</label>
+      <textarea
+        id="invitees"
+        rows="5"
+        placeholder="John Doe
+Jane Smith
+Bob Johnson"
+      ></textarea>
+    </div>
+
+    <!-- Layout Reordering -->
+    <div class="form-group">
+      <label>Section Ordering</label>
+      <!-- We have three positions; user can choose which section goes where -->
+      <!-- Options: title, name, details -->
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <div>
+          <label for="pos1">Position #1</label>
+          <select id="pos1">
+            <option value="title">Event Title</option>
+            <option value="name">Invitee Name</option>
+            <option value="details">Event Details</option>
+          </select>
+        </div>
+        <div>
+          <label for="pos2">Position #2</label>
+          <select id="pos2">
+            <option value="title">Event Title</option>
+            <option value="name">Invitee Name</option>
+            <option value="details">Event Details</option>
+          </select>
+        </div>
+        <div>
+          <label for="pos3">Position #3</label>
+          <select id="pos3">
+            <option value="title">Event Title</option>
+            <option value="name">Invitee Name</option>
+            <option value="details">Event Details</option>
+          </select>
+        </div>
       </div>
+    </div>
 
-      <div class="form-group">
-        <label for="eventDetails">Event Details (Where & When)</label>
-        <textarea
-          id="eventDetails"
-          rows="3"
-          placeholder="123 Party St. - Dec 31, 8 PM"
-        ></textarea>
+    <!-- Text Color -->
+    <div class="form-group">
+      <label for="textColor">Text Color</label>
+      <input id="textColor" type="color" value="#000000" />
+    </div>
+
+    <!-- File & Generate Buttons in one row -->
+    <div class="button-row">
+      <div>
+        <label for="inviteImage" style="font-weight: normal;">Upload an Image</label>
+        <input 
+          id="inviteImage" 
+          type="file" 
+          accept="image/*" 
+        />
       </div>
-
-      <div class="form-group">
-        <label for="invitees">Invitees (one per line)</label>
-        <textarea
-          id="invitees"
-          rows="5"
-          placeholder="John Doe\nJane Smith\n..."
-        ></textarea>
-      </div>
-
-      <div class="form-group">
-        <label for="inviteImage">Upload an Image</label>
-        <input id="inviteImage" type="file" accept="image/*" />
-      </div>
-
-      <button id="saveDataBtn">Save Data</button>
       <button id="generatePdfBtn">Generate PDF</button>
     </div>
 
-    <!-- PREVIEW SECTION -->
-    <div class="preview-section">
-      <p><strong>Live Preview</strong></p>
-      <div class="invite-preview" id="invitePreview">
-        <div class="invite-title" id="previewEventName"></div>
-        <div class="invite-details" id="previewEventDetails"></div>
-        <img id="previewImage" alt="Invite Image" style="display: none;"/>
-      </div>
+  </div>
+  <!-- END FORM SECTION -->
+
+  <!-- PREVIEW SECTION -->
+  <div class="preview-section">
+    <p><strong>Live Preview</strong></p>
+    <div class="invite-preview" id="invitePreview"></div>
+    <!-- Invitee navigation buttons -->
+    <div class="preview-navigation">
+      <button id="firstBtn">&laquo;</button>
+      <button id="prevBtn">&lt;</button>
+      <button id="nextBtn">&gt;</button>
+      <button id="lastBtn">&raquo;</button>
     </div>
   </div>
+</div>
 
-  <script>
-    // We'll use the global jspdf from the CDN
-    const { jsPDF } = window.jspdf;
 
-    // Elements
-    const eventNameInput    = document.getElementById('eventName');
-    const eventDetailsInput = document.getElementById('eventDetails');
-    const inviteesInput     = document.getElementById('invitees');
-    const inviteImageInput  = document.getElementById('inviteImage');
+<script>
+  // We'll use the global jspdf from the CDN
+  const { jsPDF } = window.jspdf;
 
-    const previewEventName    = document.getElementById('previewEventName');
-    const previewEventDetails = document.getElementById('previewEventDetails');
-    const previewImage        = document.getElementById('previewImage');
+  // ------------ ELEMENTS ------------
+  const eventNameInput    = document.getElementById('eventName');
+  const eventDetailsInput = document.getElementById('eventDetails');
+  const inviteesInput     = document.getElementById('invitees');
+  const inviteImageInput  = document.getElementById('inviteImage');
 
-    const saveDataBtn     = document.getElementById('saveDataBtn');
-    const generatePdfBtn  = document.getElementById('generatePdfBtn');
+  const pos1Select = document.getElementById('pos1');
+  const pos2Select = document.getElementById('pos2');
+  const pos3Select = document.getElementById('pos3');
 
-    // Global variable to hold the base64 image data
-    let inviteImageData = null;
+  const textColorInput = document.getElementById('textColor');
 
-    // ------------------------
-    // LOAD FROM LOCALSTORAGE
-    // ------------------------
-    window.addEventListener('load', () => {
-      const storedEventName    = localStorage.getItem('eventName') || '';
-      const storedEventDetails = localStorage.getItem('eventDetails') || '';
-      const storedInvitees     = localStorage.getItem('invitees') || '';
-      const storedImage        = localStorage.getItem('inviteImageData') || null;
+  const invitePreview   = document.getElementById('invitePreview');
 
-      eventNameInput.value    = storedEventName;
-      eventDetailsInput.value = storedEventDetails;
-      inviteesInput.value     = storedInvitees;
+  const firstBtn  = document.getElementById('firstBtn');
+  const prevBtn   = document.getElementById('prevBtn');
+  const nextBtn   = document.getElementById('nextBtn');
+  const lastBtn   = document.getElementById('lastBtn');
 
-      if (storedImage) {
-        inviteImageData = storedImage;
-        previewImage.src = inviteImageData;
-        previewImage.style.display = 'block';
-      }
+  const generatePdfBtn  = document.getElementById('generatePdfBtn');
 
+  // Global variables
+  let inviteImageData = null;
+  let currentInviteeIndex = 0; // used for preview navigation
+
+  // ------------ LOAD FROM LOCALSTORAGE ON START ------------
+  window.addEventListener('load', () => {
+    const storedEventName    = localStorage.getItem('eventName')    || '';
+    const storedEventDetails = localStorage.getItem('eventDetails') || '';
+    const storedInvitees     = localStorage.getItem('invitees')     || '';
+    const storedImage        = localStorage.getItem('inviteImageData');
+    const storedPos1         = localStorage.getItem('pos1') || 'title';
+    const storedPos2         = localStorage.getItem('pos2') || 'name';
+    const storedPos3         = localStorage.getItem('pos3') || 'details';
+    const storedTextColor    = localStorage.getItem('textColor') || '#000000';
+
+    eventNameInput.value    = storedEventName;
+    eventDetailsInput.value = storedEventDetails;
+    inviteesInput.value     = storedInvitees;
+    pos1Select.value        = storedPos1;
+    pos2Select.value        = storedPos2;
+    pos3Select.value        = storedPos3;
+    textColorInput.value    = storedTextColor;
+
+    if (storedImage) {
+      inviteImageData = storedImage;
+    }
+
+    // Populate preview
+    updatePreview();
+  });
+
+  // ------------ AUTO-SAVE ON INPUT ------------
+  function autoSave() {
+    localStorage.setItem('eventName', eventNameInput.value);
+    localStorage.setItem('eventDetails', eventDetailsInput.value);
+    localStorage.setItem('invitees', inviteesInput.value);
+    localStorage.setItem('pos1', pos1Select.value);
+    localStorage.setItem('pos2', pos2Select.value);
+    localStorage.setItem('pos3', pos3Select.value);
+    localStorage.setItem('textColor', textColorInput.value);
+    if (inviteImageData) {
+      localStorage.setItem('inviteImageData', inviteImageData);
+    }
+  }
+
+  // Attach autoSave + preview update to relevant inputs
+  [eventNameInput, eventDetailsInput, inviteesInput,
+   pos1Select, pos2Select, pos3Select, textColorInput
+  ].forEach(el => {
+    el.addEventListener('input', () => {
+      autoSave();
       updatePreview();
     });
+  });
 
-    // ------------------------
-    // SAVE TO LOCALSTORAGE
-    // ------------------------
-    function saveToLocalStorage() {
-      localStorage.setItem('eventName', eventNameInput.value);
-      localStorage.setItem('eventDetails', eventDetailsInput.value);
-      localStorage.setItem('invitees', inviteesInput.value);
-      if (inviteImageData) {
-        localStorage.setItem('inviteImageData', inviteImageData);
+  // ------------ IMAGE UPLOAD HANDLER ------------
+  inviteImageInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      inviteImageData = evt.target.result; // Base64 string
+      autoSave();
+      updatePreview();
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // ------------ PREVIEW UPDATE ------------
+  function updatePreview() {
+    // Clear preview first
+    invitePreview.innerHTML = '';
+
+    // Collect data
+    const eventName    = eventNameInput.value || '';
+    const eventDetails = eventDetailsInput.value || '';
+    const invitees     = inviteesInput.value
+      .split('\n')
+      .filter(name => name.trim().length > 0);
+
+    // Ensure currentInviteeIndex is in range
+    if (invitees.length === 0) {
+      currentInviteeIndex = 0;
+    } else if (currentInviteeIndex >= invitees.length) {
+      currentInviteeIndex = invitees.length - 1;
+    }
+
+    // Create a small function that returns a div (or text) for each "section"
+    // in the chosen order: pos1, pos2, pos3. Each can be "title", "name", or "details".
+    const sectionsOrder = [pos1Select.value, pos2Select.value, pos3Select.value];
+    const inviteeName = invitees[currentInviteeIndex] || '';
+
+    sectionsOrder.forEach((section) => {
+      let content = '';
+      switch (section) {
+        case 'title':
+          content = eventName;
+          break;
+        case 'name':
+          content = inviteeName ? `Dear ${inviteeName},` : '';
+          break;
+        case 'details':
+          content = eventDetails;
+          break;
       }
-      alert('Data saved to localStorage!');
-    }
-
-    // ------------------------
-    // PREVIEW UPDATES
-    // ------------------------
-    function updatePreview() {
-      previewEventName.textContent    = eventNameInput.value;
-      previewEventDetails.textContent = eventDetailsInput.value;
-    }
-
-    eventNameInput.addEventListener('input', updatePreview);
-    eventDetailsInput.addEventListener('input', updatePreview);
-
-    // ------------------------
-    // IMAGE UPLOAD HANDLER
-    // ------------------------
-    inviteImageInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(evt) {
-        inviteImageData = evt.target.result; // Base64 string
-        previewImage.src = inviteImageData;
-        previewImage.style.display = 'block';
-      };
-      reader.readAsDataURL(file);
+      if (content) {
+        const el = document.createElement('div');
+        el.textContent = content;
+        el.style.margin = '0.5rem 0';
+        el.style.color = textColorInput.value;
+        invitePreview.appendChild(el);
+      }
     });
 
-    // ------------------------
-    // GENERATE PDF
-    // ------------------------
-    function generatePDF() {
-      const doc = new jsPDF('p', 'pt', 'letter'); // 612x792 px
-      const allInvitees = inviteesInput.value.split('\n').filter(name => name.trim().length > 0);
+    // Add image if present
+    if (inviteImageData) {
+      const img = document.createElement('img');
+      img.src = inviteImageData;
+      invitePreview.appendChild(img);
+    }
+  }
 
-      // For each invitee, add a page (first one is automatically added)
-      allInvitees.forEach((invitee, index) => {
-        if (index > 0) {
-          doc.addPage();
+  // ------------ PREVIEW NAVIGATION ------------
+  function goToFirst() {
+    currentInviteeIndex = 0;
+    updatePreview();
+  }
+  function goToPrev() {
+    if (currentInviteeIndex > 0) {
+      currentInviteeIndex--;
+      updatePreview();
+    }
+  }
+  function goToNext() {
+    const total = inviteesInput.value
+      .split('\n')
+      .filter(name => name.trim().length > 0).length;
+    if (currentInviteeIndex < total - 1) {
+      currentInviteeIndex++;
+      updatePreview();
+    }
+  }
+  function goToLast() {
+    const total = inviteesInput.value
+      .split('\n')
+      .filter(name => name.trim().length > 0).length;
+    if (total > 0) {
+      currentInviteeIndex = total - 1;
+      updatePreview();
+    }
+  }
+
+  firstBtn.addEventListener('click', goToFirst);
+  prevBtn.addEventListener('click', goToPrev);
+  nextBtn.addEventListener('click', goToNext);
+  lastBtn.addEventListener('click', goToLast);
+
+  // ------------ GENERATE PDF ------------
+  function generatePDF() {
+    const doc = new jsPDF('p', 'pt', 'letter'); // 612x792 px
+    const eventName    = eventNameInput.value || '';
+    const eventDetails = eventDetailsInput.value || '';
+    const invitees     = inviteesInput.value
+      .split('\n')
+      .filter(name => name.trim().length > 0);
+    
+    // Convert "#RRGGBB" to (R, G, B)
+    const hexColor = textColorInput.value.replace('#','');
+    const r = parseInt(hexColor.substring(0,2), 16);
+    const g = parseInt(hexColor.substring(2,4), 16);
+    const b = parseInt(hexColor.substring(4,6), 16);
+
+    // Chosen order for the text sections
+    const sectionsOrder = [pos1Select.value, pos2Select.value, pos3Select.value];
+
+    invitees.forEach((invitee, index) => {
+      // Add a new page if not the first
+      if (index > 0) doc.addPage();
+
+      // We'll track y position as we print lines
+      let yPos = 60;
+
+      sectionsOrder.forEach(section => {
+        let textContent = '';
+        switch (section) {
+          case 'title':
+            textContent = eventName;
+            break;
+          case 'name':
+            textContent = invitee ? `Dear ${invitee},` : '';
+            break;
+          case 'details':
+            textContent = eventDetails;
+            break;
         }
-
-        // Title
-        doc.setFontSize(18);
-        doc.text(`You're invited to: ${eventNameInput.value}`, 40, 60);
-
-        // Invitee
-        doc.setFontSize(14);
-        doc.text(`Dear ${invitee},`, 40, 100);
-
-        // Details
-        doc.setFontSize(12);
-        doc.text(`Event Details: ${eventDetailsInput.value}`, 40, 130);
-
-        // Insert the image if available
-        if (inviteImageData) {
-          // For best results, consider resizing for PDF (e.g., to 200x100 px)
-          // We'll just place it to the right of text for demonstration
-          const imgWidth = 150;
-          const imgHeight = 150;
-          doc.addImage(inviteImageData, 'PNG', 350, 60, imgWidth, imgHeight);
+        if (textContent) {
+          doc.setFontSize(14);
+          doc.setTextColor(r, g, b);
+          doc.text(textContent, 40, yPos);
+          yPos += 30; // move down for next line
         }
       });
 
-      doc.save('Invites.pdf');
-    }
+      // Insert the image if available
+      if (inviteImageData) {
+        // For best results, consider resizing for PDF
+        // We'll do 150x150 as an example
+        doc.addImage(inviteImageData, 'PNG', 40, yPos, 150, 150);
+      }
+    });
 
-    // ------------------------
-    // BUTTON HANDLERS
-    // ------------------------
-    saveDataBtn.addEventListener('click', saveToLocalStorage);
-    generatePdfBtn.addEventListener('click', generatePDF);
-  </script>
+    doc.save('Invites.pdf');
+  }
+  generatePdfBtn.addEventListener('click', generatePDF);
+</script>
 </body>
 </html>
