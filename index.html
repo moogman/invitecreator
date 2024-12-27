@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Advanced Birthday Invite Generator</title>
+  <title>Birthday Invite Generator - Draggable Preview</title>
 
   <!-- jsPDF for PDF generation -->
   <script
@@ -18,7 +18,7 @@
     rel="stylesheet"
     href="https://fonts.cdnfonts.com/css/minecraft-4"
   />
-  
+
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -28,6 +28,7 @@
     }
     h1 {
       text-align: center;
+      margin-bottom: 1rem;
     }
 
     .container {
@@ -55,8 +56,7 @@
       display: block;
     }
     input[type="text"],
-    textarea,
-    select {
+    textarea {
       width: 100%;
       padding: 0.4rem;
       font-size: 1rem;
@@ -64,6 +64,22 @@
     textarea {
       resize: vertical;
     }
+    /* Row for Font: [select] [size] [color] */
+    .font-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .font-row label {
+      font-weight: bold;
+      margin-bottom: 0;
+    }
+    select, input[type="number"], input[type="color"] {
+      font-size: 1rem;
+      padding: 0.3rem;
+    }
+
     .button-row {
       display: flex;
       flex-wrap: wrap;
@@ -90,24 +106,27 @@
       flex-direction: column;
     }
     .invite-preview {
-      /* This width/height is in points (the same unit jsPDF uses).
-         612 pts x 792 pts = 8.5" x 11" (US Letter). */
-      width: 612px;
-      height: 792px;
+      /* A smaller representation of a letter page, maintaining aspect ratio.
+         We'll do 300 wide × ~389 tall (8.5×11 ratio ~ 0.772).
+         Then scale up for PDF. */
+      width: 300px;
+      height: 389px;
       border: 1px dashed #aaa;
-      position: relative;
       margin: 0 auto;
+      position: relative;
       overflow: hidden;
-      background: #fafafa;
+      background: #fff;
+      /* Add some padding inside for the "look" (we can do it with absolute child though) */
+      box-sizing: content-box;
     }
+
     /* Draggable text elements */
     .draggable {
       position: absolute;
       cursor: move;
       user-select: none; /* prevent text selection while dragging */
-      white-space: pre;  /* keep newlines if any */
+      white-space: pre;  /* preserve newlines if any */
     }
-    /* A simple handle style to show it's draggable (optional) */
     .draggable:hover {
       outline: 1px dashed #000;
     }
@@ -115,6 +134,14 @@
     /* For the "Minecraft" font */
     .font-minecraft {
       font-family: "Minecraft", sans-serif !important;
+    }
+
+    /* The preview image is also absolutely positioned inside the .invite-preview. */
+    #inviteImagePreview {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      max-width: 180px;
     }
   </style>
 </head>
@@ -158,28 +185,26 @@ Bob Johnson"
       ></textarea>
     </div>
 
-    <!-- Text Color / Font / Font Size -->
-    <div class="form-group">
-      <label>Text Color</label>
-      <input id="textColor" type="color" value="#000000"/>
-    </div>
-    <div class="form-group">
-      <label for="fontSelect">Font</label>
+    <!-- Font: [select] [size] [color] row -->
+    <div class="form-group font-row">
+      <label>Font:</label>
       <select id="fontSelect">
         <option value="Arial">Arial</option>
         <option value="Times New Roman">Times New Roman</option>
         <option value="Minecraft">Minecraft</option>
       </select>
-    </div>
-    <div class="form-group">
-      <label for="fontSize">Font Size (px)</label>
+
       <input
         id="fontSize"
         type="number"
-        value="14"
         min="8"
         max="72"
+        step="1"
+        value="14"
+        style="width:60px;"
       />
+
+      <input id="textColor" type="color" value="#000000"/>
     </div>
 
     <!-- File & Generate Buttons -->
@@ -205,25 +230,28 @@ Bob Johnson"
       <div
         class="draggable"
         id="eventNameDiv"
+        style="left: 30px; top: 30px;"
       ></div>
 
       <!-- Draggable text for the invitee name -->
       <div
         class="draggable"
         id="inviteeNameDiv"
+        style="left: 30px; top: 80px;"
       ></div>
 
       <!-- Draggable text for the event details -->
       <div
         class="draggable"
         id="eventDetailsDiv"
+        style="left: 30px; top: 130px;"
       ></div>
 
-      <!-- The image (placed behind text) -->
+      <!-- The preview image -->
       <img
         id="inviteImagePreview"
         alt="Preview Image"
-        style="position: absolute; top: 100px; left: 100px; max-width: 300px;"
+        style="display: none;"
       />
     </div>
   </div>
@@ -232,15 +260,16 @@ Bob Johnson"
 <script>
   const { jsPDF } = window.jspdf;
 
-  // --- DOM Elements ---
+  // -------------- DOM Elements --------------
   const eventNameInput     = document.getElementById('eventName');
   const eventDetailsInput  = document.getElementById('eventDetails');
   const inviteesInput      = document.getElementById('invitees');
   const inviteImageInput   = document.getElementById('inviteImage');
-  const textColorInput     = document.getElementById('textColor');
+  const generatePdfBtn     = document.getElementById('generatePdfBtn');
+
   const fontSelect         = document.getElementById('fontSelect');
   const fontSizeInput      = document.getElementById('fontSize');
-  const generatePdfBtn     = document.getElementById('generatePdfBtn');
+  const textColorInput     = document.getElementById('textColor');
 
   const invitePreview      = document.getElementById('invitePreview');
   const eventNameDiv       = document.getElementById('eventNameDiv');
@@ -248,21 +277,29 @@ Bob Johnson"
   const eventDetailsDiv    = document.getElementById('eventDetailsDiv');
   const inviteImagePreview = document.getElementById('inviteImagePreview');
 
-  // For dragging elements
-  let currentDrag = null;     // Which element is being dragged?
-  let offsetX = 0, offsetY = 0;  // Cursor offset within the element
-  // We'll store the base64 image data here
   let inviteImageData = null;
 
-  // -------------- INIT --------------
-  // On load, load from localStorage if you want persistent data:
+  // For dragging
+  let currentDrag = null;
+  let offsetX = 0, offsetY = 0;
+
+  // For scaling from preview (300×389) to PDF (612×792)
+  const PREVIEW_WIDTH  = 300;
+  const PREVIEW_HEIGHT = 389;
+  const PDF_WIDTH  = 612; // letter size
+  const PDF_HEIGHT = 792; // letter size
+  const scaleX = PDF_WIDTH / PREVIEW_WIDTH;   // ~2.04
+  const scaleY = PDF_HEIGHT / PREVIEW_HEIGHT; // ~2.04
+
+  // -------------- ON LOAD --------------
   window.addEventListener('load', () => {
-    eventNameInput.value    = localStorage.getItem('eventName')     || '';
-    eventDetailsInput.value = localStorage.getItem('eventDetails')  || '';
-    inviteesInput.value     = localStorage.getItem('invitees')      || '';
-    textColorInput.value    = localStorage.getItem('textColor')     || '#000000';
-    fontSelect.value        = localStorage.getItem('fontSelect')    || 'Arial';
-    fontSizeInput.value     = localStorage.getItem('fontSize')      || '14';
+    // Load localStorage if you want persistence
+    eventNameInput.value    = localStorage.getItem('eventName')    || '';
+    eventDetailsInput.value = localStorage.getItem('eventDetails') || '';
+    inviteesInput.value     = localStorage.getItem('invitees')     || '';
+    fontSelect.value        = localStorage.getItem('fontSelect')   || 'Arial';
+    fontSizeInput.value     = localStorage.getItem('fontSize')     || '14';
+    textColorInput.value    = localStorage.getItem('textColor')    || '#000000';
 
     const storedImage = localStorage.getItem('inviteImageData');
     if (storedImage) {
@@ -271,7 +308,7 @@ Bob Johnson"
       inviteImagePreview.style.display = 'block';
     }
 
-    // Position data from localStorage (example: JSON)
+    // Positions
     const positions = JSON.parse(localStorage.getItem('positions') || '{}');
     if (positions.eventNameDiv) {
       eventNameDiv.style.left = positions.eventNameDiv.left;
@@ -285,23 +322,8 @@ Bob Johnson"
       eventDetailsDiv.style.left = positions.eventDetailsDiv.left;
       eventDetailsDiv.style.top  = positions.eventDetailsDiv.top;
     }
-    
-    updatePreview();
-  });
 
-  // Auto-save on changes
-  [
-    eventNameInput,
-    eventDetailsInput,
-    inviteesInput,
-    textColorInput,
-    fontSelect,
-    fontSizeInput
-  ].forEach(el => {
-    el.addEventListener('input', () => {
-      autoSave();
-      updatePreview();
-    });
+    updatePreview();
   });
 
   // -------------- AUTO-SAVE --------------
@@ -309,28 +331,27 @@ Bob Johnson"
     localStorage.setItem('eventName', eventNameInput.value);
     localStorage.setItem('eventDetails', eventDetailsInput.value);
     localStorage.setItem('invitees', inviteesInput.value);
-    localStorage.setItem('textColor', textColorInput.value);
     localStorage.setItem('fontSelect', fontSelect.value);
     localStorage.setItem('fontSize', fontSizeInput.value);
+    localStorage.setItem('textColor', textColorInput.value);
 
-    // Save positions in localStorage as well
+    // Positions
     const positions = {
       eventNameDiv: {
-        left: eventNameDiv.style.left || '100px',
-        top:  eventNameDiv.style.top  || '50px'
+        left: eventNameDiv.style.left  || '30px',
+        top:  eventNameDiv.style.top   || '30px'
       },
       inviteeNameDiv: {
-        left: inviteeNameDiv.style.left || '100px',
-        top:  inviteeNameDiv.style.top  || '100px'
+        left: inviteeNameDiv.style.left || '30px',
+        top:  inviteeNameDiv.style.top  || '80px'
       },
       eventDetailsDiv: {
-        left: eventDetailsDiv.style.left || '100px',
-        top:  eventDetailsDiv.style.top  || '150px'
+        left: eventDetailsDiv.style.left || '30px',
+        top:  eventDetailsDiv.style.top  || '130px'
       }
     };
     localStorage.setItem('positions', JSON.stringify(positions));
 
-    // Also save the image
     if (inviteImageData) {
       localStorage.setItem('inviteImageData', inviteImageData);
     }
@@ -338,30 +359,23 @@ Bob Johnson"
 
   // -------------- UPDATE PREVIEW --------------
   function updatePreview() {
-    // Grab data
-    const eventName    = eventNameInput.value;
-    const eventDetails = eventDetailsInput.value;
-    const inviteesList = inviteesInput.value.split('\n').filter(x => x.trim() !== '');
+    // Use first invitee's name in preview
+    const invitees = inviteesInput.value.split('\n').filter(x => x.trim() !== '');
+    const firstInvitee = invitees.length > 0 ? invitees[0] : '';
 
-    // We'll just show the first invitee in the preview
-    // (You can add a nav system if you want multiple in the preview.)
-    const firstInvitee = inviteesList.length > 0 ? inviteesList[0] : '';
+    eventNameDiv.textContent    = eventNameInput.value || '';
+    inviteeNameDiv.textContent  = firstInvitee; // no "Dear"
+    eventDetailsDiv.textContent = eventDetailsInput.value || '';
 
-    // Update draggable text contents
-    eventNameDiv.textContent    = eventName;
-    inviteeNameDiv.textContent  = firstInvitee;
-    eventDetailsDiv.textContent = eventDetails;
-
-    // Apply color / font / size
-    const color = textColorInput.value;
-    const font  = fontSelect.value;
-    const size  = fontSizeInput.value + 'px';
+    const color  = textColorInput.value;
+    const font   = fontSelect.value;
+    const sizePx = fontSizeInput.value + 'px';
 
     [eventNameDiv, inviteeNameDiv, eventDetailsDiv].forEach(el => {
       el.style.color = color;
-      el.style.fontSize = size;
-      
-      // If user selected “Minecraft,” add the .font-minecraft class
+      el.style.fontSize = sizePx;
+
+      // For "Minecraft", add the .font-minecraft class
       if (font === 'Minecraft') {
         el.classList.add('font-minecraft');
         el.style.fontFamily = '"Minecraft", sans-serif';
@@ -372,13 +386,24 @@ Bob Johnson"
     });
   }
 
+  // Listen to inputs for auto-save + update
+  [
+    eventNameInput, eventDetailsInput, inviteesInput,
+    fontSelect, fontSizeInput, textColorInput
+  ].forEach(el => {
+    el.addEventListener('input', () => {
+      autoSave();
+      updatePreview();
+    });
+  });
+
   // -------------- IMAGE UPLOAD --------------
   inviteImageInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = function(evt) {
-      inviteImageData = evt.target.result; // Base64
+      inviteImageData = evt.target.result; // base64
       inviteImagePreview.src = inviteImageData;
       inviteImagePreview.style.display = 'block';
       autoSave();
@@ -386,18 +411,17 @@ Bob Johnson"
     reader.readAsDataURL(file);
   });
 
-  // -------------- DRAG & DROP HANDLERS --------------
-  // We can handle mousedown on each "draggable" text div
+  // -------------- DRAG & DROP --------------
+  // We'll bind mousedown to each draggable
   [eventNameDiv, inviteeNameDiv, eventDetailsDiv].forEach(el => {
     el.addEventListener('mousedown', startDrag);
   });
+  // Move on the document so we can continue drag even if cursor leaves element
   document.addEventListener('mousemove', onDrag);
   document.addEventListener('mouseup', endDrag);
 
   function startDrag(e) {
-    // Identify the element being dragged
     currentDrag = e.target;
-    // Compute offsets
     const rect = currentDrag.getBoundingClientRect();
     offsetX = e.clientX - rect.left;
     offsetY = e.clientY - rect.top;
@@ -405,118 +429,113 @@ Bob Johnson"
 
   function onDrag(e) {
     if (!currentDrag) return;
-    // Constrain movement within the invitePreview
+
+    // Constrain to the preview
     const parentRect = invitePreview.getBoundingClientRect();
+    const elemRect = currentDrag.getBoundingClientRect();
 
     let newLeft = e.clientX - parentRect.left - offsetX;
     let newTop  = e.clientY - parentRect.top - offsetY;
 
-    // Keep text within bounds
-    const elemRect = currentDrag.getBoundingClientRect();
-    // Right/bottom boundaries
+    // Boundaries
     const maxLeft = parentRect.width - elemRect.width;
     const maxTop  = parentRect.height - elemRect.height;
-
     if (newLeft < 0) newLeft = 0;
     if (newTop  < 0) newTop  = 0;
     if (newLeft > maxLeft) newLeft = maxLeft;
     if (newTop  > maxTop ) newTop  = maxTop;
 
-    // Apply
     currentDrag.style.left = newLeft + 'px';
     currentDrag.style.top  = newTop + 'px';
   }
 
   function endDrag() {
     if (currentDrag) {
-      // Save positions when drag ends
-      autoSave();
+      autoSave(); // Save positions after dragging ends
     }
     currentDrag = null;
   }
 
   // -------------- GENERATE PDF --------------
   function generatePDF() {
-    const doc = new jsPDF('p', 'pt', 'letter'); // 612 x 792
-    const eventName    = eventNameInput.value;
-    const eventDetails = eventDetailsInput.value;
+    const doc = new jsPDF('p', 'pt', 'letter'); // 612×792
+    const eventName    = eventNameInput.value || '';
+    const eventDetails = eventDetailsInput.value || '';
     const invitees     = inviteesInput.value.split('\n').filter(x => x.trim() !== '');
 
-    // Collect styling
-    const color = textColorInput.value;
-    const hexColor = color.replace('#','');
+    // Color
+    const hexColor = textColorInput.value.replace('#','');
     const r = parseInt(hexColor.substring(0,2), 16);
     const g = parseInt(hexColor.substring(2,4), 16);
     const b = parseInt(hexColor.substring(4,6), 16);
 
+    // Font
     const chosenFont = fontSelect.value;
-    // We'll map the user selection to a built-in jsPDF font or fallback
-    // jsPDF does not have "Minecraft" built-in, so we can’t embed it easily 
-    // without a custom TTF. We'll approximate it with 'courier' or just 'helvetica'.
+    // Map user font to jsPDF's built-in fonts
     let jsPdfFont = 'helvetica';
-    if (chosenFont.toLowerCase().includes('times')) jsPdfFont = 'times';
-    else if (chosenFont.toLowerCase().includes('courier')) jsPdfFont = 'courier';
+    if (chosenFont.toLowerCase().includes('times'))   jsPdfFont = 'times';
+    if (chosenFont.toLowerCase().includes('courier')) jsPdfFont = 'courier';
 
     const fontSize = parseInt(fontSizeInput.value, 10);
 
-    // Positions from the preview
-    // We'll read the bounding boxes (x,y in the .invite-preview).
-    // Because preview is sized 612x792, we can use the positions 1:1 in jsPDF.
-    // If you scale your preview differently, you must adjust (ratio).
-    function getElementPosition(el) {
+    // Helper: get positions from the preview, then scale
+    function getScaledPos(el) {
+      // bounding box relative to .invite-preview
       const rect = el.getBoundingClientRect();
-      const parentRect = invitePreview.getBoundingClientRect();
+      const pRect = invitePreview.getBoundingClientRect();
+      const x = rect.left - pRect.left;
+      const y = rect.top  - pRect.top;
       return {
-        x: rect.left - parentRect.left,
-        y: rect.top  - parentRect.top,
+        x: x * scaleX,
+        y: y * scaleY
       };
     }
-    const posName   = getElementPosition(eventNameDiv);
-    const posInvite = getElementPosition(inviteeNameDiv);
-    const posDetail = getElementPosition(eventDetailsDiv);
-    // If the image is placed at top=100, left=100 in the preview, let's do the same in PDF
-    // or we can read its bounding box as well:
+
+    const posName   = getScaledPos(eventNameDiv);
+    const posInvite = getScaledPos(inviteeNameDiv);
+    const posDetail = getScaledPos(eventDetailsDiv);
+
+    // Image position & size
     const imgRect = inviteImagePreview.getBoundingClientRect();
-    const parentRect = invitePreview.getBoundingClientRect();
-    const imgX = imgRect.left - parentRect.left;
-    const imgY = imgRect.top  - parentRect.top;
-    // We'll pick the displayed size in the preview
-    const imgWidth  = imgRect.width;
-    const imgHeight = imgRect.height;
+    const pRect   = invitePreview.getBoundingClientRect();
+    const imgX = (imgRect.left - pRect.left) * scaleX;
+    const imgY = (imgRect.top  - pRect.top)  * scaleY;
+    const imgW = imgRect.width  * scaleX;
+    const imgH = imgRect.height * scaleY;
 
     invitees.forEach((invitee, i) => {
-      if (i > 0) doc.addPage(); // new page per invitee
+      if (i > 0) doc.addPage();
 
-      // We'll set the color & font for each text piece
+      // Set color & font
       doc.setTextColor(r, g, b);
       doc.setFont(jsPdfFont, 'normal');
       doc.setFontSize(fontSize);
 
-      // event name
+      // Print event name
       if (eventName) {
-        doc.text(eventName, posName.x, posName.y + fontSize); 
-        // + fontSize to place the baseline roughly where it appears in preview
+        // + fontSize to offset the text baseline
+        doc.text(eventName, posName.x, posName.y + fontSize);
       }
 
-      // invitee name (no "Dear")
+      // Print invitee name (no "Dear")
       if (invitee) {
         doc.text(invitee, posInvite.x, posInvite.y + fontSize);
       }
 
-      // event details
+      // Print event details (multiple lines if needed)
       if (eventDetails) {
-        // For multi-line text, we can split by newlines & print line by line
         const lines = eventDetails.split('\n');
         let lineY = posDetail.y + fontSize;
         lines.forEach(line => {
           doc.text(line, posDetail.x, lineY);
-          lineY += (fontSize + 4); // small line spacing
+          lineY += (fontSize + 2); // small line spacing
         });
       }
 
       // Insert image if available
       if (inviteImageData) {
-        doc.addImage(inviteImageData, 'PNG', imgX, imgY, imgWidth, imgHeight);
+        // We'll assume it's a PNG
+        doc.addImage(inviteImageData, 'PNG', imgX, imgY, imgW, imgH);
       }
     });
 
